@@ -98,7 +98,7 @@ VALUE js_dev_axes(VALUE klass)
 
 	Data_Get_Struct(klass, int, fd);
 	if(ioctl(*fd, JSIOCGAXES, &axes) == -1) {
-		rb_raise(rb_eException, "cannot retrive axes");
+		rb_raise(rb_eException, "cannot retrieve axes");
 	}
 	return INT2FIX(axes);
 }
@@ -130,7 +130,7 @@ VALUE js_dev_buttons(VALUE klass)
 VALUE js_dev_name(VALUE klass)
 {
 	int *fd;
-	char name[NAME_LENGTH] = "Unknow";
+	char name[NAME_LENGTH] = "Unknown";
 
 	Data_Get_Struct(klass, int, fd);
 	if(ioctl(*fd, JSIOCGNAME(NAME_LENGTH), name) == -1) {
@@ -278,7 +278,7 @@ VALUE js_event_time(VALUE klass)
  * call-seq: value()
  *
  * Returns the value of the event, which is internally a
- * signed 16-bit integer. It can range from -32767 to 32767.
+ * signed 16-bit integer. It can range from -32768 to 32767.
  */
 VALUE js_event_value(VALUE klass)
 {
@@ -320,7 +320,6 @@ VALUE js_six_get_six(VALUE klass)
 	int z = -1;
 	unsigned char buf[128];
 	VALUE saxis = rb_hash_new();
-
 
 	Data_Get_Struct(klass, int, fh);
 	if(res = read(*fh, buf, sizeof(buf))) {
