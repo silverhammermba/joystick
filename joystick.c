@@ -39,7 +39,7 @@ static VALUE rb_cDevice;
 static VALUE rb_cEvent;
 static VALUE rb_cSixaxis;
 
-void Init_rjoystick();
+void Init_joystick();
 
 static struct js_event jse[MAX_JS];
 
@@ -63,6 +63,13 @@ void jssix_free(int* fh)
 	free(fh);
 }
 
+/*
+ * Document-method: Joystick::Device.new
+ * call-seq: new(path)
+ *
+ * Construct a new Joystick::Device object. +path+ is the file
+ * path to the joystick's input device e.g. "/dev/input/js0"
+ */
 VALUE js_dev_init(VALUE klass, VALUE dev_path)
 {
 	int *fd;
@@ -78,6 +85,12 @@ VALUE js_dev_init(VALUE klass, VALUE dev_path)
 	return Qnil;
 }
 
+/*
+ * Document-method: Joystick::Device.axes
+ * call-seq: axes()
+ *
+ * Returns the number of axes of the device.
+ */
 VALUE js_dev_axes(VALUE klass)
 {
 	int *fd;
@@ -89,7 +102,13 @@ VALUE js_dev_axes(VALUE klass)
 	}
 	return INT2FIX(axes);
 }
-
+ 
+/*
+ * Document-method: Joystick::Device.buttons
+ * call-seq: buttons()
+ *
+ * Returns the number of buttons on the device.
+ */
 VALUE js_dev_buttons(VALUE klass)
 {
 	int *fd;
@@ -102,6 +121,12 @@ VALUE js_dev_buttons(VALUE klass)
 	return INT2FIX(buttons);
 }
 
+/*
+ * Document-method: Joystick::Device.name
+ * call-seq: name()
+ *
+ * Returns the name of the device.
+ */
 VALUE js_dev_name(VALUE klass)
 {
 	int *fd;
@@ -114,6 +139,12 @@ VALUE js_dev_name(VALUE klass)
 	return rb_str_new2(name);
 }
 
+/*
+ * Document-method: Joystick::Device.axes_maps
+ * call-seq: axes_maps()
+ *
+ * TODO figure this out
+ */
 VALUE js_dev_axes_maps(VALUE klass)
 {
 	int *fd;
@@ -126,6 +157,12 @@ VALUE js_dev_axes_maps(VALUE klass)
 	return INT2FIX(axes_maps);
 }
 
+/*
+ * Document-method: Joystick::Device.version
+ * call-seq: version()
+ *
+ * Returns a string containing the version of the device.
+ */
 VALUE js_dev_version(VALUE klass)
 {
 	int *fd;
@@ -142,6 +179,15 @@ VALUE js_dev_version(VALUE klass)
 	return rb_str_new2(js_version);
 }
 
+/*
+ * Document-method: Joystick::Device.event
+ * call-seq: event(+blocking+)
+ *
+ * Get a Joystick::Event object from the device.
+ *
+ * The optional +blocking+ argument determines whether or not
+ * this is a blocking call. It is blocking by default.
+ */
 VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 {
 	int *fd;
@@ -160,6 +206,13 @@ VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 	return Qnil;
 }
 
+/*
+ * Document-method: Joystick::Device.close
+ * call-seq: close()
+ *
+ * Close the file handle for the device. This should be called
+ * for all Joystick::Devices before the script terminates.
+ */
 VALUE js_dev_close(VALUE klass)
 {
 	int *fd;
@@ -169,6 +222,13 @@ VALUE js_dev_close(VALUE klass)
 	return Qnil;
 }
 
+/*
+ * Document-method: Joystick::Event.number
+ * call-seq: number()
+ *
+ * Returns the number of the axis or button responsible for
+ * the event.
+ */
 VALUE js_event_number(VALUE klass)
 {
 	int *fd;
@@ -176,6 +236,14 @@ VALUE js_event_number(VALUE klass)
 	return INT2FIX((fd && *fd >= 0) ? jse[*fd].number : -1);
 }
 
+/*
+ * Document-method: Joystick::Event.type
+ * call-seq: type()
+ *
+ * Returns the type of the event. Normally this should either
+ * be either :axis or :button. If "something goes wrong", the
+ * numerical type is returned.
+ */
 VALUE js_event_type(VALUE klass)
 {
 	int *fd;
@@ -191,6 +259,13 @@ VALUE js_event_type(VALUE klass)
 	}
 }
 
+/*
+ * Document-method: Joystick::Event.time
+ * call-seq: time()
+ *
+ * Returns the time, in milliseconds, that the event occurred.
+ * TODO what is time 0?
+ */
 VALUE js_event_time(VALUE klass)
 {
 	int *fd;
@@ -198,6 +273,13 @@ VALUE js_event_time(VALUE klass)
 	return INT2FIX((fd && *fd >= 0) ? jse[*fd].time : -1);
 }
 
+/*
+ * Document-method: Joystick::Event.value
+ * call-seq: value()
+ *
+ * Returns the value of the event, which is internally a
+ * signed 16-bit integer. It can range from -32767 to 32767.
+ */
 VALUE js_event_value(VALUE klass)
 {
 	int *fd;
@@ -205,6 +287,12 @@ VALUE js_event_value(VALUE klass)
 	return INT2FIX((fd && *fd >= 0) ? jse[*fd].value : -1);
 }
 
+/*
+ * Document-method: Joystick::SixAxis.new
+ * call-seq: new(path)
+ *
+ * TODO
+ */
 VALUE js_six_init(VALUE klass, VALUE path)
 {
 	int *fh;
@@ -217,6 +305,12 @@ VALUE js_six_init(VALUE klass, VALUE path)
 	return Qnil;	
 }
 
+/*
+ * Document-method: Joystick::SixAxis.get_sixaxis
+ * call-seq: get_sixaxis()
+ *
+ * TODO
+ */
 VALUE js_six_get_six(VALUE klass)
 {
 	int *fh;
@@ -251,6 +345,12 @@ VALUE js_six_get_six(VALUE klass)
 	return Qnil;
 }
 
+/*
+ * Document-method: Joystick::SixAxis.close
+ * call-seq: close(path)
+ *
+ * TODO
+ */
 VALUE js_six_close(VALUE klass)
 {
 	int *fh;
@@ -260,7 +360,7 @@ VALUE js_six_close(VALUE klass)
 	return INT2FIX(close(*fh));
 }
 
-void Init_rjoystick()
+void Init_joystick()
 {
 	rb_mJoystick = rb_define_module("Joystick");
 
@@ -271,7 +371,7 @@ void Init_rjoystick()
 	rb_define_method(rb_cDevice, "axes_maps", js_dev_axes_maps, 0);
 	rb_define_method(rb_cDevice, "name", js_dev_name, 0);
 	rb_define_method(rb_cDevice, "version", js_dev_version, 0);
-	rb_define_method(rb_cDevice, "event", js_dev_event_get, 0);
+	rb_define_method(rb_cDevice, "event", js_dev_event_get, -1);
 	rb_define_method(rb_cDevice, "close", js_dev_close, 0);
 
 	rb_cEvent = rb_define_class_under(rb_mJoystick, "Event", rb_cObject);	
@@ -284,11 +384,4 @@ void Init_rjoystick()
 	rb_define_singleton_method(rb_cSixaxis, "new", js_six_init, 1);
 	rb_define_method(rb_cSixaxis, "get_sixaxis", js_six_get_six, 0); 
 	rb_define_method(rb_cSixaxis, "close", js_six_close, 0);
-
-	/*
-	 * only used for identifying event types, so no need to make them available
-	rb_define_const(rb_cEvent, "BUTTON", INT2FIX(JS_EVENT_BUTTON));
-	rb_define_const(rb_cEvent, "AXIS", INT2FIX(JS_EVENT_AXIS));
-	rb_define_const(rb_cEvent, "INIT", INT2FIX(JS_EVENT_INIT));
-	*/
 }
