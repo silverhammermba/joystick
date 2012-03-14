@@ -19,41 +19,91 @@ class Xbox360Controller < Joystick::Device
 		end
 	end
 
-	def state_mode
-		@axis = Array.new(axes)
-		@button = Array.new(buttons)
-		#Thread.new do
-			while true
-				if e = event(false)
-					case e.type
-					when :axis
-						@axis[e.number] = e.value
-					when :button
-						@button[e.number] = e.value
-					end
-				end
-				#sleep(0.1)
-			end
-		#end
-	end
+	#def event *args
+	#	if e = super(*args)
+	#		case e.type
+	#		when :axis
+	#			@axis[e.number] = e.value
+	#		when :button
+	#			@button[e.number] = e.value
+	#		end
+	#	end
+	#	return e
+	#end
 
 	def joy_test
+		# blocking joystick test
 		scr = Curses.init
 		Curses.curs_set 0
+		Curses.echo = false
 		while e = event
-			if e.type == :axis
-				case e.number
-				when 0
-					x = (scr.columns - 1) * (e.value + 32767) / 65534
-				when 1
-					y = (scr.lines - 1) * (e.value + 32767) / 65534
-				end
+			if @axis[0] and @axis[1]
+				x = (scr.columns - 1) * (@axis[0] + 32767) / 65534
+				y = (scr.lines - 1) * (@axis[1] + 32767) / 65534
 				scr.clear
-				scr.print(y, x, "#") if y and x
+				scr.print(y, x, "#")
 				scr.refresh
 			end
+			if e.type == :button and e.number == 7 and e.value == 1
+				break
+			end
 		end
-		scr.print(0, 0, "THE FUCK")
+		Curses.close
+	end
+
+	def joy_test2
+		# non-blocking CPU hog joystick test
+		scr = Curses.init
+		Curses.curs_set 0
+		Curses.echo = false
+		while true
+			if e = event
+				if e.type == :axis and @axis[0] and @axis[1]
+					y = (scr.lines - 1) * (@axis[1] + 32767) / 65534
+					x = (scr.columns - 1) * (@axis[0] + 32767) / 65534
+					scr.clear
+					scr.print(y, x, "#")
+					scr.refresh
+				end
+				if e.type == :button and e.number == 7 and e.value == 1
+					break
+				end
+			end
+		end
+		Curses.close
+	end
+
+	def joy_test3
+		# threaded CPU friendly blocking joystick test
+
+		put = nil
+		get = Thread.new do
+			while true
+				e = event
+				if e.type == :button and e.number == 7 and e.value == 1
+					get.exit
+					put.exit
+				end
+			end
+		end
+
+		scr = Curses.init
+		Curses.curs_set 0
+		Curses.echo = false
+		put = Thread.new do
+			while true
+				sleep 0.01
+				if @axis[0] and @axis[1]
+					y = (scr.lines - 1) * (@axis[1] + 32767) / 65534
+					x = (scr.columns - 1) * (@axis[0] + 32767) / 65534
+					scr.clear
+					scr.print(y, x, "#")
+					scr.refresh
+				end
+			end
+		end
+		get.join
+		Curses.close
 	end
 
 	def triggers
@@ -87,6 +137,18 @@ class Xbox360Controller < Joystick::Device
 			end
 		end
 		return ret
+	end
+
+	def get_axis deadzone = 0
+		@axis = Array.new(axes) unless @axis
+		until (e = event(true)).nil?
+			if e.type == :axis and e.number <= 1
+				@axis[e.number] = e.value
+			end
+		end
+		return @axis[0..1]
+		#magnitude = Math.sqrt(ret[0] ** 2 + ret[1] ** 2)
+		#return [Math.atan2(ret[1], ret[0]), magnitude] if magnitude >= deadzone
 	end
 end
 

@@ -73,13 +73,17 @@ void jssix_free(int* fh)
 VALUE js_dev_init(VALUE klass, VALUE dev_path)
 {
 	int *fd;
+	VALUE dev;
 	
 	if((fd = malloc(sizeof(int))) != NULL) {
 		if((*fd = open(RSTRING_PTR(dev_path), O_RDONLY)) >= 0) {
 			if(*fd >= MAX_JS)
 				rb_raise(rb_eException, "Error");
 			
-			return Data_Wrap_Struct(klass, jsdevice_mark, jsdevice_free, fd);
+			dev = Data_Wrap_Struct(klass, jsdevice_mark, jsdevice_free, fd);
+			rb_ivar_set(dev, rb_intern("@axis"), rb_ary_new());
+			rb_ivar_set(dev, rb_intern("@button"), rb_ary_new());
+			return dev;
 		}
 	}	
 	return Qnil;
@@ -179,28 +183,45 @@ VALUE js_dev_version(VALUE klass)
 	return rb_str_new2(js_version);
 }
 
+struct event_arg {
+	int *fd;
+	ssize_t l;
+};
+
+/* TODO general idea stolen from curses.c */
+static VALUE
+js_event_func(void *_arg)
+{
+	struct event_arg *arg = (struct event_arg *)_arg;
+	arg->l = read(*(arg->fd), &jse[*(arg->fd)], sizeof(struct js_event));
+	return Qnil;
+}
+
 /*
  * Document-method: Joystick::Device.event
  * call-seq: event(+blocking+)
  *
  * Get a Joystick::Event object from the device.
  *
- * The optional +blocking+ argument determines whether or not
+ * The optional +nonblocking+ argument determines whether or not
  * this is a blocking call. It is blocking by default.
  */
 VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 {
+	struct event_arg arg;
 	int *fd;
-	VALUE blocking;
+	VALUE nonblocking;
 
-	rb_scan_args(argc, argv, "01", &blocking);
+	rb_scan_args(argc, argv, "01", &nonblocking);
 
 	Data_Get_Struct(klass, int, fd);
 
-	if(RTEST(blocking))
+	if(RTEST(nonblocking))
 		fcntl(*fd, F_SETFL, O_NONBLOCK); /* non-blocking call */
 
-	if(read(*fd, &jse[*fd], sizeof(struct js_event)) > 0)
+	arg.fd = fd;
+	rb_thread_blocking_region(js_event_func, (void *)&arg, RUBY_UBF_IO, 0);
+	if(arg.l > 0)
 		return Data_Wrap_Struct(rb_cEvent, 0, 0, fd);
 	
 	return Qnil;
