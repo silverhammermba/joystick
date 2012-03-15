@@ -17,6 +17,7 @@
 **/
 
 /* Any help and suggestions are always welcome */
+/* TODO change klass to obj when it's an Object and not a Class... */
 
 
 #include "ruby.h"
@@ -126,6 +127,28 @@ VALUE js_dev_buttons(VALUE klass)
 }
 
 /*
+ * Document-method: Joystick::Device.axis
+ * call-seq: axis()
+ *
+ * Reader for @axis which stores the latest axis values.
+ */
+VALUE js_dev_axis(VALUE klass)
+{
+	return rb_ivar_get(klass, rb_intern("@axis"));
+}
+
+/*
+ * Document-method: Joystick::Device.button
+ * call-seq: button()
+ *
+ * Reader for @button which stores the latest button values.
+ */
+VALUE js_dev_button(VALUE klass)
+{
+	return rb_ivar_get(klass, rb_intern("@button"));
+}
+ 
+/*
  * Document-method: Joystick::Device.name
  * call-seq: name()
  *
@@ -222,7 +245,17 @@ VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 	arg.fd = fd;
 	rb_thread_blocking_region(js_event_func, (void *)&arg, RUBY_UBF_IO, 0);
 	if(arg.l > 0)
+	{
+		switch(jse[*fd].type & ~JS_EVENT_INIT) /* TODO I think it's safe to assume we have a valid event now */
+		{
+			case JS_EVENT_AXIS:
+				rb_ary_store(rb_ivar_get(klass, rb_intern("@axis")), jse[*fd].number, INT2FIX(jse[*fd].value));
+				break;
+			case JS_EVENT_BUTTON:
+				rb_ary_store(rb_ivar_get(klass, rb_intern("@button")), jse[*fd].number, INT2FIX(jse[*fd].value));
+		}
 		return Data_Wrap_Struct(rb_cEvent, 0, 0, fd);
+	}
 	
 	return Qnil;
 }
@@ -388,6 +421,8 @@ void Init_joystick()
 	rb_define_singleton_method(rb_cDevice, "new", js_dev_init, 1);
 	rb_define_method(rb_cDevice, "axes", js_dev_axes, 0);
 	rb_define_method(rb_cDevice, "buttons", js_dev_buttons, 0);
+	rb_define_method(rb_cDevice, "axis", js_dev_axis, 0);
+	rb_define_method(rb_cDevice, "button", js_dev_button, 0);
 	rb_define_method(rb_cDevice, "axes_maps", js_dev_axes_maps, 0);
 	rb_define_method(rb_cDevice, "name", js_dev_name, 0);
 	rb_define_method(rb_cDevice, "version", js_dev_version, 0);

@@ -19,18 +19,6 @@ class Xbox360Controller < Joystick::Device
 		end
 	end
 
-	#def event *args
-	#	if e = super(*args)
-	#		case e.type
-	#		when :axis
-	#			@axis[e.number] = e.value
-	#		when :button
-	#			@button[e.number] = e.value
-	#		end
-	#	end
-	#	return e
-	#end
-
 	def joy_test
 		# blocking joystick test
 		scr = Curses.init
