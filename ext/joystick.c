@@ -17,8 +17,11 @@
 **/
 
 /* Any help and suggestions are always welcome */
-/* TODO change klass to obj when it's an Object and not a Class... */
-
+/* TODO
+ * change klass to obj when it's an Object and not a Class...
+ * figure out RDoc syntax (return types!)
+ * add documentation for classes and modules
+ */
 
 #include "ruby.h"
 #include "ruby/io.h"
@@ -91,7 +94,7 @@ VALUE js_dev_init(VALUE klass, VALUE dev_path)
 }
 
 /*
- * Document-method: Joystick::Device.axes
+ * Document-method: Joystick::Device#axes
  * call-seq: axes()
  *
  * Returns the number of axes of the device.
@@ -109,7 +112,7 @@ VALUE js_dev_axes(VALUE klass)
 }
  
 /*
- * Document-method: Joystick::Device.buttons
+ * Document-method: Joystick::Device#buttons
  * call-seq: buttons()
  *
  * Returns the number of buttons on the device.
@@ -127,7 +130,7 @@ VALUE js_dev_buttons(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Device.axis
+ * Document-method: Joystick::Device#axis
  * call-seq: axis()
  *
  * Reader for @axis which stores the latest axis values.
@@ -138,7 +141,7 @@ VALUE js_dev_axis(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Device.button
+ * Document-method: Joystick::Device#button
  * call-seq: button()
  *
  * Reader for @button which stores the latest button values.
@@ -149,7 +152,7 @@ VALUE js_dev_button(VALUE klass)
 }
  
 /*
- * Document-method: Joystick::Device.name
+ * Document-method: Joystick::Device#name
  * call-seq: name()
  *
  * Returns the name of the device.
@@ -167,7 +170,7 @@ VALUE js_dev_name(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Device.axes_maps
+ * Document-method: Joystick::Device#axes_maps
  * call-seq: axes_maps()
  *
  * TODO figure this out
@@ -185,7 +188,7 @@ VALUE js_dev_axes_maps(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Device.version
+ * Document-method: Joystick::Device#version
  * call-seq: version()
  *
  * Returns a string containing the version of the device.
@@ -206,12 +209,13 @@ VALUE js_dev_version(VALUE klass)
 	return rb_str_new2(js_version);
 }
 
+/* used for blocking calls to Joystick::Device#event */
 struct event_arg {
 	int *fd;
 	ssize_t l;
 };
 
-/* TODO general idea stolen from curses.c */
+/* general idea stolen from curses.c */
 static VALUE
 js_event_func(void *_arg)
 {
@@ -221,8 +225,8 @@ js_event_func(void *_arg)
 }
 
 /*
- * Document-method: Joystick::Device.event
- * call-seq: event(+blocking+)
+ * Document-method: Joystick::Device#event
+ * call-seq: event(nonblocking = nil)
  *
  * Get a Joystick::Event object from the device.
  *
@@ -233,6 +237,7 @@ VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 {
 	struct event_arg arg;
 	int *fd;
+	ssize_t length;
 	VALUE nonblocking;
 
 	rb_scan_args(argc, argv, "01", &nonblocking);
@@ -240,11 +245,18 @@ VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 	Data_Get_Struct(klass, int, fd);
 
 	if(RTEST(nonblocking))
-		fcntl(*fd, F_SETFL, O_NONBLOCK); /* non-blocking call */
+	{
+		/* TODO I'm not sure how big of a performance hit this is */
+		fcntl(*fd, F_SETFL, O_NONBLOCK); /* non-blocking mode */
+		length = read(*fd, &jse[*fd], sizeof(struct js_event));
+		fcntl(*fd, F_SETFL, fcntl(*fd, F_GETFL) & ~O_NONBLOCK); /* revert to blocking mode */
+	} else {
+		arg.fd = fd;
+		rb_thread_blocking_region(js_event_func, (void *)&arg, RUBY_UBF_IO, 0);
+		length = arg.l;
+	}
 
-	arg.fd = fd;
-	rb_thread_blocking_region(js_event_func, (void *)&arg, RUBY_UBF_IO, 0);
-	if(arg.l > 0)
+	if(length > 0)
 	{
 		switch(jse[*fd].type & ~JS_EVENT_INIT) /* TODO I think it's safe to assume we have a valid event now */
 		{
@@ -261,7 +273,7 @@ VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Device.close
+ * Document-method: Joystick::Device#close
  * call-seq: close()
  *
  * Close the file handle for the device. This should be called
@@ -277,7 +289,7 @@ VALUE js_dev_close(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Event.number
+ * Document-method: Joystick::Event#number
  * call-seq: number()
  *
  * Returns the number of the axis or button responsible for
@@ -291,7 +303,7 @@ VALUE js_event_number(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Event.type
+ * Document-method: Joystick::Event#type
  * call-seq: type()
  *
  * Returns the type of the event. Normally this should either
@@ -314,7 +326,7 @@ VALUE js_event_type(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Event.time
+ * Document-method: Joystick::Event#time
  * call-seq: time()
  *
  * Returns the time, in milliseconds, that the event occurred.
@@ -328,7 +340,7 @@ VALUE js_event_time(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::Event.value
+ * Document-method: Joystick::Event#value
  * call-seq: value()
  *
  * Returns the value of the event, which is internally a
@@ -360,7 +372,7 @@ VALUE js_six_init(VALUE klass, VALUE path)
 }
 
 /*
- * Document-method: Joystick::SixAxis.get_sixaxis
+ * Document-method: Joystick::SixAxis#get_sixaxis
  * call-seq: get_sixaxis()
  *
  * TODO
@@ -399,7 +411,7 @@ VALUE js_six_get_six(VALUE klass)
 }
 
 /*
- * Document-method: Joystick::SixAxis.close
+ * Document-method: Joystick::SixAxis#close
  * call-seq: close(path)
  *
  * TODO
@@ -428,12 +440,14 @@ void Init_joystick()
 	rb_define_method(rb_cDevice, "version", js_dev_version, 0);
 	rb_define_method(rb_cDevice, "event", js_dev_event_get, -1);
 	rb_define_method(rb_cDevice, "close", js_dev_close, 0);
+	/* TODO add a useful to_s method */
 
 	rb_cEvent = rb_define_class_under(rb_mJoystick, "Event", rb_cObject);	
 	rb_define_method(rb_cEvent, "time", js_event_time, 0);
 	rb_define_method(rb_cEvent, "value", js_event_value, 0);
 	rb_define_method(rb_cEvent, "number", js_event_number, 0);
 	rb_define_method(rb_cEvent, "type", js_event_type, 0);
+	/* TODO add a useful to_s method */
 		
 	rb_cSixaxis = rb_define_class_under(rb_mJoystick, "SixAxis", rb_cObject);
 	rb_define_singleton_method(rb_cSixaxis, "new", js_six_init, 1);
