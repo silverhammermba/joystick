@@ -18,7 +18,6 @@
 
 /* Any help and suggestions are always welcome */
 /* TODO
- * change klass to obj when it's an Object and not a Class...
  * figure out RDoc syntax (return types!)
  * add documentation for classes and modules
  */
@@ -99,12 +98,12 @@ VALUE js_dev_init(VALUE klass, VALUE dev_path)
  *
  * Returns the number of axes of the device.
  */
-VALUE js_dev_axes(VALUE klass)
+VALUE js_dev_axes(VALUE self)
 {
 	int *fd;
 	unsigned char axes;
 
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	if(ioctl(*fd, JSIOCGAXES, &axes) == -1) {
 		rb_raise(rb_eException, "cannot retrieve axes");
 	}
@@ -117,11 +116,11 @@ VALUE js_dev_axes(VALUE klass)
  *
  * Returns the number of buttons on the device.
  */
-VALUE js_dev_buttons(VALUE klass)
+VALUE js_dev_buttons(VALUE self)
 {
 	int *fd;
 	unsigned char buttons;
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	if(ioctl(*fd, JSIOCGBUTTONS, &buttons) == -1) {
 		rb_raise(rb_eException, "cannot retrieve buttons");
 	}
@@ -135,9 +134,9 @@ VALUE js_dev_buttons(VALUE klass)
  *
  * Reader for @axis which stores the latest axis values.
  */
-VALUE js_dev_axis(VALUE klass)
+VALUE js_dev_axis(VALUE self)
 {
-	return rb_ivar_get(klass, rb_intern("@axis"));
+	return rb_ivar_get(self, rb_intern("@axis"));
 }
 
 /*
@@ -146,9 +145,9 @@ VALUE js_dev_axis(VALUE klass)
  *
  * Reader for @button which stores the latest button values.
  */
-VALUE js_dev_button(VALUE klass)
+VALUE js_dev_button(VALUE self)
 {
-	return rb_ivar_get(klass, rb_intern("@button"));
+	return rb_ivar_get(self, rb_intern("@button"));
 }
  
 /*
@@ -157,16 +156,45 @@ VALUE js_dev_button(VALUE klass)
  *
  * Returns the name of the device.
  */
-VALUE js_dev_name(VALUE klass)
+VALUE js_dev_name(VALUE self)
 {
 	int *fd;
 	char name[NAME_LENGTH] = "Unknown";
 
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	if(ioctl(*fd, JSIOCGNAME(NAME_LENGTH), name) == -1) {
 		rb_raise(rb_eException, "cannot retrieve name");
 	}
 	return rb_str_new2(name);
+}
+
+/*
+ * Document-method: Joystick::Device#to_s
+ * call-seq: to_s()
+ *
+ * Returns a string containing the name and version of the device.
+ */
+VALUE js_dev_to_s(VALUE self)
+{
+
+	int *fd;
+	char name[NAME_LENGTH] = "Unknown";
+	char js_version[16];
+	int version = 0x000800;
+	VALUE string;
+
+	Data_Get_Struct(self, int, fd);
+
+	// I hope I don't need error checking here...
+	ioctl(*fd, JSIOCGNAME(NAME_LENGTH), name);
+	ioctl(*fd, JSIOCGVERSION, &version);
+
+	string = rb_str_new2(name);
+	sprintf(js_version, "%d.%d.%d\n", version >> 16, (version >> 8) & 0xff, version & 0xff);
+
+	rb_str_cat2(string, js_version);
+
+	return string;
 }
 
 /*
@@ -175,12 +203,12 @@ VALUE js_dev_name(VALUE klass)
  *
  * TODO figure this out
  */
-VALUE js_dev_axes_maps(VALUE klass)
+VALUE js_dev_axes_maps(VALUE self)
 {
 	int *fd;
 
 	uint8_t axes_maps[ABS_MAX + 1];
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	if(ioctl(*fd, JSIOCGAXMAP, &axes_maps) == -1) {
 		rb_raise(rb_eException, "cannot retrive axes");
 	}
@@ -193,12 +221,12 @@ VALUE js_dev_axes_maps(VALUE klass)
  *
  * Returns a string containing the version of the device.
  */
-VALUE js_dev_version(VALUE klass)
+VALUE js_dev_version(VALUE self)
 {
 	int *fd;
 	int version = 0x000800;
 	char js_version[16];
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	if(ioctl(*fd, JSIOCGVERSION, &version) == -1) {
 		rb_raise(rb_eException, "version error");
 	}
@@ -233,7 +261,7 @@ js_event_func(void *_arg)
  * The optional +nonblocking+ argument determines whether or not
  * this is a blocking call. It is blocking by default.
  */
-VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
+VALUE js_dev_event_get(int argc, VALUE *argv, VALUE self)
 {
 	struct event_arg arg;
 	int *fd;
@@ -242,7 +270,7 @@ VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 
 	rb_scan_args(argc, argv, "01", &nonblocking);
 
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 
 	if(RTEST(nonblocking))
 	{
@@ -261,10 +289,10 @@ VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
 		switch(jse[*fd].type & ~JS_EVENT_INIT) /* TODO I think it's safe to assume we have a valid event now */
 		{
 			case JS_EVENT_AXIS:
-				rb_ary_store(rb_ivar_get(klass, rb_intern("@axis")), jse[*fd].number, INT2FIX(jse[*fd].value));
+				rb_ary_store(rb_ivar_get(self, rb_intern("@axis")), jse[*fd].number, INT2FIX(jse[*fd].value));
 				break;
 			case JS_EVENT_BUTTON:
-				rb_ary_store(rb_ivar_get(klass, rb_intern("@button")), jse[*fd].number, INT2FIX(jse[*fd].value));
+				rb_ary_store(rb_ivar_get(self, rb_intern("@button")), jse[*fd].number, INT2FIX(jse[*fd].value));
 		}
 		return Data_Wrap_Struct(rb_cEvent, 0, 0, fd);
 	}
@@ -279,11 +307,11 @@ VALUE js_dev_event_get(int argc, VALUE *argv, VALUE klass)
  * Close the file handle for the device. This should be called
  * for all Joystick::Devices before the script terminates.
  */
-VALUE js_dev_close(VALUE klass)
+VALUE js_dev_close(VALUE self)
 {
 	int *fd;
 	
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	close(*fd);
 	return Qnil;
 }
@@ -295,10 +323,10 @@ VALUE js_dev_close(VALUE klass)
  * Returns the number of the axis or button responsible for
  * the event.
  */
-VALUE js_event_number(VALUE klass)
+VALUE js_event_number(VALUE self)
 {
 	int *fd;
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	return INT2FIX((fd && *fd >= 0) ? jse[*fd].number : -1);
 }
 
@@ -310,10 +338,10 @@ VALUE js_event_number(VALUE klass)
  * be either :axis or :button. If "something goes wrong", the
  * numerical type is returned.
  */
-VALUE js_event_type(VALUE klass)
+VALUE js_event_type(VALUE self)
 {
 	int *fd;
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	switch(((fd && *fd >= 0) ? jse[*fd].type : -1) & ~JS_EVENT_INIT)
 	{
 		case JS_EVENT_AXIS:
@@ -332,10 +360,10 @@ VALUE js_event_type(VALUE klass)
  * Returns the time, in milliseconds, that the event occurred.
  * TODO what is time 0?
  */
-VALUE js_event_time(VALUE klass)
+VALUE js_event_time(VALUE self)
 {
 	int *fd;
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	return INT2FIX((fd && *fd >= 0) ? jse[*fd].time : -1);
 }
 
@@ -346,10 +374,10 @@ VALUE js_event_time(VALUE klass)
  * Returns the value of the event, which is internally a
  * signed 16-bit integer. It can range from -32768 to 32767.
  */
-VALUE js_event_value(VALUE klass)
+VALUE js_event_value(VALUE self)
 {
 	int *fd;
-	Data_Get_Struct(klass, int, fd);
+	Data_Get_Struct(self, int, fd);
 	return INT2FIX((fd && *fd >= 0) ? jse[*fd].value : -1);
 }
 
@@ -377,7 +405,7 @@ VALUE js_six_init(VALUE klass, VALUE path)
  *
  * TODO
  */
-VALUE js_six_get_six(VALUE klass)
+VALUE js_six_get_six(VALUE self)
 {
 	int *fh;
 	int res;
@@ -387,7 +415,7 @@ VALUE js_six_get_six(VALUE klass)
 	unsigned char buf[128];
 	VALUE saxis = rb_hash_new();
 
-	Data_Get_Struct(klass, int, fh);
+	Data_Get_Struct(self, int, fh);
 	if(res = read(*fh, buf, sizeof(buf))) {
 		if(res == 48) {
    			x = buf[40]<<8 | buf[41];
@@ -416,11 +444,11 @@ VALUE js_six_get_six(VALUE klass)
  *
  * TODO
  */
-VALUE js_six_close(VALUE klass)
+VALUE js_six_close(VALUE self)
 {
 	int *fh;
 	
-	Data_Get_Struct(klass, int, fh);
+	Data_Get_Struct(self, int, fh);
 
 	return INT2FIX(close(*fh));
 }
@@ -438,6 +466,7 @@ void Init_joystick()
 	rb_define_method(rb_cDevice, "axes_maps", js_dev_axes_maps, 0);
 	rb_define_method(rb_cDevice, "name", js_dev_name, 0);
 	rb_define_method(rb_cDevice, "version", js_dev_version, 0);
+	rb_define_method(rb_cDevice, "to_s", js_dev_to_s, 0);
 	rb_define_method(rb_cDevice, "event", js_dev_event_get, -1);
 	rb_define_method(rb_cDevice, "close", js_dev_close, 0);
 	/* TODO add a useful to_s method */
